@@ -5,6 +5,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
+import { LoginDTO } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +32,33 @@ export class AuthService {
     });
     return this.usersRepo.save(user);
   }
+
+  //for login user
+  async login(dto: LoginDTO): Promise<{ token: string; user: Partial<User> }> {
+    const user = await this.usersRepo.findOne({ where: { email: dto.email } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isValid = await bcrypt.compare(dto.password, user.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const payload = { id: user.id, email: user.email };
+    const token = this.jwtService.sign(payload);
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    };
+  }
+
   // ✅ This method is called by JwtStrategy
   async validateUser(payload: { id: number; email: string }): Promise<User> {
     const user = await this.usersRepo.findOne({ where: { id: payload.id } });
