@@ -16,7 +16,7 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() dto: LoginDTO,
-    @Res({ passthrough: true }) res: Response, // ✅ now no TS1272
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { token, user } = await this.authService.login(dto);
 
