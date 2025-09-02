@@ -27,6 +27,6 @@ export class AuthController {
       maxAge: 3600000,
     });
 
-    return { user };
+    return { user, token };
   }
 }
