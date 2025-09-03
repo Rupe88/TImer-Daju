@@ -1,9 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
+import { Request } from 'express';
 import { AuthService } from '../auth.service';
 import { User } from 'src/users/entities/user.entity';
+
+interface JwtPayload {
+  id: number;
+  email: string;
+}
+
+interface JwtRequest extends Request {
+  cookies: {
+    jwt?: string;
+  };
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -17,14 +29,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: JwtRequest) => {
+          if (!req || typeof req.cookies?.jwt !== 'string') return null;
+          return req.cookies.jwt;
+        },
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       secretOrKey: jwtSecret,
     });
   }
 
-  // ✅ Type payload and return type properly
-  async validate(payload: { id: number; email: string }): Promise<User> {
-    // Returns a fully typed User object
-    return await this.authService.validateUser(payload);
+  async validate(payload: JwtPayload): Promise<User> {
+    const user = await this.authService.validateUser(payload);
+    if (!user) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    return user; // Automatically becomes req.user
   }
 }
