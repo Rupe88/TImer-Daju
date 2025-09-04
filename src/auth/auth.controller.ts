@@ -58,7 +58,7 @@ export class AuthController {
   async googleAuthCallback(
     @Req() req: any,
     @Res({ passthrough: true }) res: any,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; token: string }> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const user = req.user; // User information from Google
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -72,7 +72,7 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000, // 1 day
       path: '/', // Cookie path
     });
-    return { message: 'Google authentication successful' };
+    return { message: 'Google authentication successful', token };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     // return res.redirect('http://localhost:3000/dashboard'); // Redirect to your frontend or desired URL
   }
@@ -87,7 +87,7 @@ export class AuthController {
   async githubAuthCallback(
     @Req() req: any,
     @Res({ passthrough: true }) res: any,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; token: string }> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const user = req.user; // User information from Google
     const token = await this.authService.socialLogin(user);
@@ -101,6 +101,7 @@ export class AuthController {
       path: '/', // Cookie path
     });
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-    return res.redirect('http://localhost:3000/dashboard'); // Redirect to your frontend or desired URL
+    return { message: 'GitHub login successful', token };
+    // return res.redirect('http://localhost:3000/dashboard'); // Redirect to your frontend or desired URL
   }
 }
