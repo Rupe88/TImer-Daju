@@ -23,7 +23,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     const { emails, displayName, username } = profile;
 
     const user = {
-      email: emails?.[0]?.value || `${username}@github.com`, // fallback if no email
+      email: emails?.[0]?.value || `${username}@github.com`, // fallback if no email is provided;
       firstName: displayName?.split(' ')[0] || username,
       lastName: displayName?.split(' ')[1] || '',
       provider: 'github',
