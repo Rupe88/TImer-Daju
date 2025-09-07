@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -7,9 +8,16 @@ import { LoginDTO } from './dto/login.dto';
 import type { Response } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
+import { UsersService } from 'src/users/users.service';
+import { TwoFAService } from './two-fa.service';
+import { User } from '../users/entities/user.entity';
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UsersService,
+    private readonly twoFAService: TwoFAService,
+  ) {}
 
   @Post('register')
   async register(@Body() dto: CreateUserDto) {
@@ -106,8 +114,20 @@ export class AuthController {
   }
 
   //for 2fa authentication
-
+  //generate qr code and secret
   @UseGuards(AuthGuard('jwt'))
   @Post('2fa/generate')
-  async generate2FASecret(@Req() req: any) {}
+  async generateTwoFactorAuthSecret(@Req() req: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const user = req.user;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    const secret = this.twoFAService.generateSecret(user.email);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    await this.userService.setTwoFASecret(user.id, secret.base32);
+    if (!secret.otpauth_url) {
+      throw new Error('OTP Auth URL is missing');
+    }
+    const qrCode = await this.twoFAService.generateQRCode(secret.otpauth_url);
+    return { qrCode, secret: secret.base32 };
+  }
 }

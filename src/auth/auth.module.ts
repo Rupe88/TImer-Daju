@@ -9,9 +9,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { TwoFAService } from './two-fa.service';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     // TypeORM feature for User entity
     TypeOrmModule.forFeature([User]),
 
@@ -31,7 +34,13 @@ import { GoogleStrategy } from './strategies/google.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GithubStrategy, GoogleStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GithubStrategy,
+    GoogleStrategy,
+    TwoFAService,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}
