@@ -19,4 +19,10 @@ export class User {
 
   @Column({ nullable: true })
   provider: string;
+
+  @Column({ nullable: true })
+  twoFactorSecret: string;
+
+  @Column({ default: false })
+  isTwoFAEnabled: boolean;
 }
