@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Body } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -129,5 +137,21 @@ export class AuthController {
     }
     const qrCode = await this.twoFAService.generateQRCode(secret.otpauth_url);
     return { qrCode, secret: secret.base32 };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('2fa/enable')
+  async enableTwoFactorAuth(@Req() req: any, @Body('code') code: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = await this.userService.findUserByEmail(req.user.email);
+    if (!user || !user.twoFactorSecret) {
+      throw new UnauthorizedException('2FA not set up for this user');
+    }
+    const verified = this.twoFAService.verifyCode(user.twoFactorSecret, code);
+    if (!verified) {
+      throw new UnauthorizedException('Invalid 2FA code');
+    }
+    await this.userService.enableTwoFA(user.id);
+    return { message: '2FA enabled successfully', success: true };
   }
 }
