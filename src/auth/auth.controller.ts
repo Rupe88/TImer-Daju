@@ -19,6 +19,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from 'src/users/users.service';
 import { TwoFAService } from './two-fa.service';
 import { User } from '../users/entities/user.entity';
+import { TwoFaGuard } from './guards/twofa.guard';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -153,5 +154,34 @@ export class AuthController {
     }
     await this.userService.enableTwoFA(user.id);
     return { message: '2FA enabled successfully', success: true };
+  }
+
+  @UseGuards(TwoFaGuard)
+  @Post('2fa/verify')
+  async verifyTwoFactorAuthCode(
+    @Req() req: any,
+    @Body('code') code: string,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = await this.userService.findUserById(+req.user.id);
+    if (!user || !user.twoFactorSecret) {
+      throw new UnauthorizedException('2FA not set up for this user');
+    }
+    const verified = this.twoFAService.verifyCode(user.twoFactorSecret, code);
+    if (!verified) {
+      throw new UnauthorizedException('Invalid 2FA code');
+    }
+    const payload = { id: user.id, email: user.email };
+    const token = this.authService.generateJwtToken(payload);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      sameSite: 'lax', // Use 'lax' for CSRF protection
+      secure: process.env.NODE_ENV === 'production', // Set to true in production
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      path: '/', // Cookie path
+    });
+    return { message: '2FA verification successful', success: true };
   }
 }

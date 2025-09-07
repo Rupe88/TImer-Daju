@@ -96,4 +96,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
     return user;
   }
+
+  generateJwtToken(payload: { id: number; email: string }): string {
+    return this.jwtService.sign(payload);
+  }
 }
