@@ -40,6 +40,27 @@ export class AuthController {
   ) {
     const { token, user } = await this.authService.login(dto);
 
+    // Check if user has 2FA enabled
+    if (user.isTwoFAEnabled) {
+      // Set pending_user cookie instead of JWT for 2FA users
+      if (!user.id) {
+        throw new UnauthorizedException('User ID is missing');
+      }
+      res.cookie('pending_user', user.id.toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 300000, // 5 minutes - shorter expiry for pending auth
+      });
+
+      return {
+        message: '2FA required',
+        requires2FA: true,
+        user: { id: user.id, email: user.email }, // Don't include sensitive data
+      };
+    }
+
+    // Normal login flow for users without 2FA
     res.cookie('jwt', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -156,32 +177,44 @@ export class AuthController {
     return { message: '2FA enabled successfully', success: true };
   }
 
-  @UseGuards(TwoFaGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/verify')
   async verifyTwoFactorAuthCode(
     @Req() req: any,
     @Body('code') code: string,
-    @Res({ passthrough: true }) res: any,
+    @Res({ passthrough: true }) res: Response,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const user = await this.userService.findUserById(+req.user.id);
     if (!user || !user.twoFactorSecret) {
       throw new UnauthorizedException('2FA not set up for this user');
     }
+
     const verified = this.twoFAService.verifyCode(user.twoFactorSecret, code);
     if (!verified) {
       throw new UnauthorizedException('Invalid 2FA code');
     }
+
     const payload = { id: user.id, email: user.email };
     const token = this.authService.generateJwtToken(payload);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    res.cookie('access_token', token, {
+
+    // Clear the pending_user cookie
+    res.clearCookie('pending_user');
+
+    // Set the final JWT cookie (use consistent naming - 'jwt' like in login)
+    res.cookie('jwt', token, {
       httpOnly: true,
-      sameSite: 'lax', // Use 'lax' for CSRF protection
-      secure: process.env.NODE_ENV === 'production', // Set to true in production
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
-      path: '/', // Cookie path
+      path: '/',
     });
-    return { message: '2FA verification successful', success: true };
+
+    return {
+      message: '2FA verification successful',
+      success: true,
+      token,
+      user: { id: user.id, email: user.email },
+    };
   }
 }
