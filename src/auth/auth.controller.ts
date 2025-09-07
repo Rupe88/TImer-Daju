@@ -104,4 +104,10 @@ export class AuthController {
     return { message: 'GitHub login successful', token };
     // return res.redirect('http://localhost:3000/dashboard'); // Redirect to your frontend or desired URL
   }
+
+  //for 2fa authentication
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('2fa/generate')
+  async generate2FASecret(@Req() req: any) {}
 }
